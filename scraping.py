@@ -3,27 +3,29 @@ from splinter import Browser
 from bs4 import BeautifulSoup as soup
 import pandas as pd
 import datetime as dt
- 
+
+
 def scrape_all():
-   # Initiate headless driver for deployment
+    # Initiate headless driver for deployment
     browser = Browser("chrome", executable_path="chromedriver", headless=True)
+
     news_title, news_paragraph = mars_news(browser)
-    # Run all scraping functions and store results in dictionary
+
+    # Run all scraping functions and store results in a dictionary
     data = {
         "news_title": news_title,
         "news_paragraph": news_paragraph,
         "featured_image": featured_image(browser),
         "facts": mars_facts(),
+        "hemi_list": hemi_img(browser),
         "last_modified": dt.datetime.now()
     }
+
     # Stop webdriver and return data
     browser.quit()
     return data
 
-# Set the executable path and initialize the chrome browser in splinter
-executable_path = {'executable_path': '/usr/local/bin/chromedriver'}
-browser = Browser('chrome', **executable_path)
- 
+
 def mars_news(browser):
 
     # Scrape Mars News
@@ -50,9 +52,8 @@ def mars_news(browser):
         return None, None
 
     return news_title, news_p
- 
-###JPL Space Images Featured Image
- 
+
+
 def featured_image(browser):
     # Visit URL
     url = 'https://www.jpl.nasa.gov/spaceimages/?search=&category=Mars'
@@ -83,9 +84,7 @@ def featured_image(browser):
     img_url = f'https://www.jpl.nasa.gov{img_url_rel}'
 
     return img_url
- 
-# ## Mars Facts
- 
+
 def mars_facts():
     # Add try/except for error handling
     try:
@@ -94,14 +93,41 @@ def mars_facts():
 
     except BaseException:
         return None
-    
+
     # Assign columns and set index of dataframe
     df.columns=['Description', 'Mars']
     df.set_index('Description', inplace=True)
-    
+
     # Convert dataframe into HTML format, add bootstrap
-    return df.to_html()
- 
+    return df.to_html(classes="table table-striped")
+
+def hemi_img(browser):
+    #Visit URL
+    url = 'https://astrogeology.usgs.gov/search/results?q=hemisphere+enhanced&k1=target&v1=Mars' 
+    browser.visit(url)
+
+    # Create an empty list
+    hemi_list=[]
+
+    hemi_dict ={'title':[], 'image':[]}
+
+    for i in range(4):
+        # Parse the resulting html with soup
+        browser.find_by_css('a.product-item h3')[i].click()
+        hemi_html = browser.html
+        hemi_soup = soup(hemi_html, 'html.parser')
+
+        title = hemi_soup.find('h2').text
+        image = hemi_soup.find('a', text="Sample").get('href')
+
+        # Creating dictionary keys
+        hemi_dict['title'].append(title)
+        hemi_dict['image'].append(image)
+
+        hemi_dictionary = {'title':title, 'image':image}
+        hemi_list.append(hemi_dictionary)
+        browser.back()
+    return hemi_list
+
 if __name__ == "__main__":
-    # If running as script, print scraped data
     print(scrape_all())
